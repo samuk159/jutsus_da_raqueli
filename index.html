@@ -21,6 +21,7 @@
         <div v-else>
             <div v-if="phase === 'gameover'">
                 <h1>Game Over</h1>
+                <button class="btn btn-primary btn-lg" @click="startGame">Jogar novamente</button>
             </div>
 
             <div class="card-row row justify-content-around py-5">
@@ -35,7 +36,6 @@
             <div v-if="phase !== 'gameover'">    
                 <img v-for="n in roundsWon" src="assets/img/kunai.png" class="kunai mx-3">
                 <h1>Tempo: {{time}}</h1>
-                <button class="btn btn-primary btn-lg" @click="startGame">Jogar novamente</button>
             </div>
 
             <h1>Pontos: {{points}}</h1>
