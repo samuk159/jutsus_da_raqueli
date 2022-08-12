@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Jutsus da Raqueli</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <!--<link rel="stylesheet" href="assets/css/jquery.toast.min.css">-->
+    <!--<link rel="stylesheet" href="assets/css/style.css">-->
+    <!--<link rel="shortcut icon" type="image/x-icon" href="favicon.ico">-->
+</head>
+<body>
+    <div id="app" style="height: 100vh; overflow: hidden;" class="p-3">
+
+        <div v-if="phase === 'break'" class="m-5">
+            <h1>Se prepare para o próximo jutsu...</h1>
+        </div>
+
+        <div v-else>
+            <div v-if="phase === 'gameover'">
+                <h1>Game Over</h1>
+            </div>
+
+            <div class="card-row row justify-content-around py-5">
+                <div v-for="(card, index) in currentCards" :key="'card-' + index" class="col" :class="{ 'card-won': cardIndex > index }">
+                    <img :src="'assets/img/' + card + '.png'" :style="'max-width: ' + maxCardWidth + '%'">
+                    <span v-if="phase === 'tutorial' || phase === 'gameover'">
+                        <h1>{{card}}</h1>
+                    </span>
+                </div>
+            </div>
+
+            <div v-if="phase !== 'gameover'">    
+                <img v-for="n in roundsWon" src="assets/img/kunai.png" class="kunai mx-3">
+                <h1>Tempo: {{time}}</h1>
+            </div>
+
+            <h1>Pontos: {{points}}</h1>
+
+            <button class="btn btn-primary btn-lg" @click="startGame">Jogar novamente</button>
+        </div>
+    </div>
+    <script>
+        var app = new Vue({
+            el: '#app',
+            data: {
+                phase: 'gameover', //tutorial, game, gameover, break
+                time: 10,
+                maxCards: 1,
+                cardIndex: 0,
+                allCards: ['H', 'A', 'X', 'M', 'U', 'P', 'Y', 'I', 'O', 'Z', 'S', 'L', 'J'],
+                currentCards: [],
+                maxRounds: 5,
+                roundsWon: 0,
+                points: 0,
+                music: null,
+                gameOverSong: null,
+                secondsTimeout: null
+            },
+            mounted() {
+                document.onkeypress = this.keyPressed;
+                //this.currentCards = this.allCards;
+                //this.crateSuccessSound();
+                //this.nextRound();
+                this.gameOver();
+            },
+            methods: {
+                startGame() {
+                    this.maxCards = 1;
+                    this.phase = 'tutorial';
+                    this.roundsWon = 0;
+                    this.points = 0;
+
+                    if (this.gameOverSong) {
+                        this.gameOverSong.pause();
+                    }
+
+                    this.music = this.playSound('music.mp3');
+                    this.nextRound();
+                },
+
+                keyPressed(e) {
+                    if (this.phase !== 'game' && this.phase !== 'tutorial') {
+                        return;
+                    }
+
+                    e = e || window.event;
+                    //console.log(e);
+                    console.log(e.key.toUpperCase());
+                    let currentCard = this.getCurrentCard();
+
+                    if (e.key.toUpperCase() === currentCard) {
+                        this.playSound('sign.wav');
+                        this.cardIndex++;
+
+                        if (this.cardIndex >= this.currentCards.length) {
+                            this.roundsWon++;
+                            this.points += this.calcPointsEarned();
+                            this.nextRound();
+                        }
+                    }
+                },
+
+                nextRound() {
+                    if (this.roundsWon >= this.maxRounds) {
+                        this.roundFinished();
+                    } else {
+                        this.prepareRound();
+                    }
+                },
+
+                prepareRound() {
+                    this.currentCards = [];
+                    this.cardIndex = 0;
+                    this.time = 10;
+                    let tempCards = JSON.parse(JSON.stringify(this.allCards));
+                    tempCards = this.shuffle(tempCards);
+
+                    for (let i = 0; i < tempCards.length; i++) {
+                        let card = tempCards[i];
+                        this.currentCards.push(card);
+
+                        if (this.currentCards.length >= this.maxCards) {
+                            break;
+                        }
+                    }
+
+                    console.log(this.currentCards);
+                    this.deduzirSegundo();
+                },
+
+                shuffle(array) {
+                    var currentIndex = array.length, temporaryValue, randomIndex;
+
+                    while (0 !== currentIndex) {
+                        randomIndex = Math.floor(Math.random() * currentIndex);
+                        currentIndex -= 1;
+                        temporaryValue = array[currentIndex];
+                        array[currentIndex] = array[randomIndex];
+                        array[randomIndex] = temporaryValue;
+                    }
+
+                    return array;
+                },
+
+                getCurrentCard() {
+                    return this.currentCards[this.cardIndex];
+                },
+
+                deduzirSegundo() {
+                    if (this.secondsTimeout) {
+                        clearTimeout(this.secondsTimeout);
+                    }
+
+                    this.secondsTimeout = setTimeout(() => {
+                        this.time--;
+
+                        if (this.time > 0) {
+                            this.deduzirSegundo();
+                        } else {
+                            if (this.music) {
+                                this.music.pause();
+                            }
+
+                            this.gameOverSong = this.playSound('game_over.mp3');
+                            this.gameOver();
+                        }
+                    }, 1000);
+                },
+
+                gameOver() {
+                    this.phase = 'gameover';
+                    this.currentCards = JSON.parse(JSON.stringify(this.allCards));
+                    this.maxCards = this.allCards.length;
+                    this.cardIndex = 0;
+                },
+
+                calcPointsEarned() {
+                    return this.time * this.maxCards;
+                },
+
+                roundFinished() {
+                    clearTimeout(this.secondsTimeout);
+                    this.playSound('jutsu.wav');
+                    oldPhase = this.phase;
+                    this.phase = 'break';
+
+                    setTimeout(() => {
+                        this.phase = oldPhase;
+                        this.roundsWon = 0;
+
+                        if (this.phase === 'tutorial') {
+                            this.phase = 'game';
+                        } else {
+                            if (this.maxCards < this.allCards.length) {
+                                this.maxCards++;
+                            }
+                        }
+
+                        this.prepareRound();
+                    }, 3000);
+                },
+
+                /*crateSuccessSound() {
+                    this.sound = document.createElement("audio");
+                    this.sound.src = 'assets/audio/jutsu.wav';
+                    this.sound.setAttribute("preload", "auto");
+                    this.sound.setAttribute("controls", "none");
+                    this.sound.style.display = "none";
+                },*/
+
+                playSound(name) {
+                    /*if (this.sound.paused) {
+                      this.sound.play();
+                    }*/ 
+                    let sound = document.createElement("audio");
+                    sound.src = 'assets/audio/' + name;
+                    sound.setAttribute("preload", "auto");
+                    sound.setAttribute("controls", "none");
+                    sound.style.display = "none";
+                    sound.play();
+
+                    return sound;
+                }
+            },
+            computed: {
+                maxCardWidth() {
+                    let aux = this.allCards.length;
+                    if (this.maxCards <= 5) {
+                        aux = 5;
+                    } else if (this.maxCards <= 8) {
+                        aux = 8;
+                    }
+
+                    let r = (100 / aux) * this.maxCards;
+                    r = Math.min(r, 100);
+                    //console.log(r);
+                    return r;
+                }
+            }
+        });
+    </script>
+    <style>
+        .kunai {
+            max-width: 100px;
+        }
+
+        .card-won {
+            filter: gray; /* IE6-9 */
+            -webkit-filter: grayscale(1); /* Google Chrome, Safari 6+ & Opera 15+ */
+            filter: grayscale(1);
+        }
+
+        h1 {
+            font-size: 80px;
+            font-weight: bold;
+        }
+
+        .card-row {
+            border: 5px solid #000;
+        }
+    </style>
+</body>
+</html>
